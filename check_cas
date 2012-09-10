@@ -13,6 +13,10 @@
 # Usage:
 #   perl check_cas.pl -H cas.example.fr -u "/cas/login" -p 443 -l username -a password -r "Log In Successful"
 
+# Prevent Nagios from using the Embedded Perl Interpreter for this module
+# as per http://nagios.sourceforge.net/docs/3_0/embeddedperl.html
+# nagios: -epn
+
 use strict;
 use Getopt::Std;
 use Getopt::Long qw(:config no_ignore_case);
