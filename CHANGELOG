@@ -1,0 +1,17 @@
+2010/01/08 - Version 1.3
+* Adding nagios performance data support
+
+2009/03/25 - Version 1.2
+* Passing session cookie in headers than in URL to avoid a incorrect rewrite with tomcat urlrewrite mod
+
+2008/12/02 - Version 1.1
+* Adding comments
+
+2008/11/26 - Version 1.0
+* Multilple additional check
+* Debug mode
+* Help rewrite
+* More option
+* CAS v3.3 support (may not work with older version)
+
+2005/01/01 - Initial version 0.01 par Eli Anderson Copyright (c) 2005

@@ -1,35 +1,17 @@
 #! /usr/bin/perl -w
 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Nagios CAS (Central Autentication Service) plugin
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This plugin makes a CAS authentication to display service status, so you need
+# a valid CAS account for make it working. For retrieving performance data it 
+# does a login into the CAS service managment application and look for the 
+# "<nagiosPerformanceData></nagiosPerformanceData>" tags. The user account needs
+# rights to acces the service managment application to get performance data.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# Nagios CAS (Central Autentication Service) check plugins 
+# Author: Christophe Marteau
 #
-# Author : Christophe Marteau
-# Last modification : 08/01/2010
-# Version : 1.3
-#
-# Realease notes :
-# 01/01/2005 : - Initial version 0.01 par Eli Anderson Copyright (c) 2005
-# 26/11/2008 : - Multilple additional check
-#              - Debug mode
-#              - Help rewrite
-#              - More option
-#              - CAS v3.3 support (may not work with older version)
-# 02/12/2008 : - Adding comments
-# 25/03/2009 : - Passing session cookie in headers than in URL to avoid a incorrect rewrite
-#                with tomcat urlrewrite mod
-# 08/01/2010 : - Adding nagios performance data support
+# Usage:
+#   perl check_cas.pl -H cas.example.fr -u "/cas/login" -p 443 -l username -a password -r "Log In Successful"
 
 use strict;
 use Getopt::Std;
