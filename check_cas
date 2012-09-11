@@ -212,7 +212,7 @@ if ($serviceAlive && $serviceAlive->connected()) {
 
   # Verifying server response when conection is done to the login page
   &debug(1, 'main', 'Login response : {' . $response . '}');
-  if ($response =~ /^HTTP\/1\.1 200 OK$/) {
+  if ($response =~ /^HTTP\/1\.[01] 200 OK$/) {
     &debug(3, 'main', 'Login headers : ');
     foreach my $headerName (keys(%h_Header)) {
       &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
@@ -282,7 +282,7 @@ if ($serviceAlive && $serviceAlive->connected()) {
         );
 
         &debug(1, 'main', 'Login response : {' . $response . '}');
-        if ($response =~ /^HTTP\/1\.1 200 OK$/) {
+        if ($response =~ /^HTTP\/1\.[01] 200 OK$/) {
           &debug(3, 'main', 'Login headers : ');
 
           # Printing headers (debug mode)
