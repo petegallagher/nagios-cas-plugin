@@ -23,7 +23,7 @@ use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
 use vars qw($PROGNAME);
 use lib "/usr/lib/nagios/plugins";
-use lib "/usr/lib64/nagios/plugins" ;
+use lib "/usr/lib64/nagios/plugins";
 use utils qw (%ERRORS &print_revision);
 use IO::Socket;
 use Net::SSLeay qw(&post_https &make_form &make_headers &get_https4 &get_https);
@@ -206,7 +206,8 @@ if ($serviceAlive && $serviceAlive->connected()) {
   my ($content, $response, %h_Header, $certificat) = post_https(
     $h_Option{'hostname'}{'value'},
     $h_Option{'port'}{'value'},
-    $h_Option{'url'}{'value'}
+    $h_Option{'url'}{'value'},
+    make_headers('User-Agent' => 'nagios/check_cas')
   );
 
   # Verifying server response when conection is done to the login page
@@ -270,7 +271,7 @@ if ($serviceAlive && $serviceAlive->connected()) {
           $h_Option{'hostname'}{'value'},
           $h_Option{'port'}{'value'},
           $h_Option{'url'}{'value'},
-          make_headers('COOKIE' => 'JSESSIONID=' . $cookie),
+          make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
           make_form(
             entity   => $entity,
             username => $h_Option{'login'}{'value'},
