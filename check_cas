@@ -225,7 +225,7 @@ if ($serviceAlive && $serviceAlive->connected()) {
       &debug(1, 'main', 'CAS Login Ticket (lt) found : {' . $loginTicket . '}');
 
       # Retreiving session cookie (if available)
-      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Z0-9]+); Path=\/cas; Secure$/) {
+      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Za-z0-9-_:]+); Path=\//) {
 
         my $cookie = "$1";
         &debug(1, 'main', 'CAS session Cookie found : {' . $cookie . '}');
