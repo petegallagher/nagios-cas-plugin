@@ -54,6 +54,9 @@ $h_Option{'url'}{'options'} = '[-a-zA-Z0-9_./]+';
 $h_Option{'ltregex'}{'value'}   = 'input type="hidden" name="lt" value="([-a-zA-Z0-9_]+)';
 $h_Option{'ltregex'}{'options'} = '.+';
 
+$h_Option{'execution'}{'value'}   = 'input type="hidden" name="execution" value="([-a-zA-Z0-9_]+)';
+$h_Option{'execution'}{'options'} = '.+';
+
 $h_Option{'login'}{'value'}   = '';
 $h_Option{'login'}{'options'} = '.+';
 
@@ -108,8 +111,8 @@ sub debug () {
   }
 }
 
-# Fonction qui teste les options passées en parametres du
-# programme et génére une aide si l'option n'est pas valide
+# Fonction qui teste les options passÃ©es en parametres du
+# programme et gÃ©nere une aide si l'option n'est pas valide
 sub parse_option {
   &debug(9, 'parse_option', 'BEGIN parse_option');
 
@@ -219,6 +222,12 @@ if ($serviceAlive && $serviceAlive->connected()) {
     }
     &debug(9, 'main', 'Login page content : ' . "\n" . $content);
 
+    # Verifying if CAS version > 3.4.10
+    my $casnewversion = 0;
+    if ($content =~ /$h_Option{'execution'}{'value'}/) {
+      $casnewversion = 1;
+    }
+    
     # Retreiving Login Ticket (if available)
     if ($content =~ /$h_Option{'ltregex'}{'value'}/) {
       my $loginTicket = "$1";
@@ -267,20 +276,38 @@ if ($serviceAlive && $serviceAlive->connected()) {
               . ', lt=>'
               . $loginTicket
               . ', _eventId=>submit"');
-        ($content, $response, %h_Header, $certificat) = post_https(
-          $h_Option{'hostname'}{'value'},
-          $h_Option{'port'}{'value'},
-          $h_Option{'url'}{'value'},
-          make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
-          make_form(
-            entity   => $entity,
-            username => $h_Option{'login'}{'value'},
-            password => $h_Option{'authentication'}{'value'},
-            lt       => $loginTicket,
-            _eventId => 'submit'
-          )
-        );
-
+        if($casnewversion) {
+          ($content, $response, %h_Header, $certificat) = post_https(
+            $h_Option{'hostname'}{'value'},
+            $h_Option{'port'}{'value'},
+            $h_Option{'url'}{'value'},
+            make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
+            make_form(
+              entity    => $entity,
+              username  => $h_Option{'login'}{'value'},
+              password  => $h_Option{'authentication'}{'value'},
+              executive => $loginTicket,
+              lt        => '',
+              _eventId  => 'submit'
+            )
+          );
+        }
+        else {
+          ($content, $response, %h_Header, $certificat) = post_https(
+            $h_Option{'hostname'}{'value'},
+            $h_Option{'port'}{'value'},
+            $h_Option{'url'}{'value'},
+            make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
+            make_form(
+              entity   => $entity,
+              username => $h_Option{'login'}{'value'},
+              password => $h_Option{'authentication'}{'value'},
+              lt       => $loginTicket,
+              _eventId => 'submit'
+            )
+          );
+        }
+        
         &debug(1, 'main', 'Login response : {' . $response . '}');
         if ($response =~ /^HTTP\/1\.[01] 200 OK$/) {
           &debug(3, 'main', 'Login headers : ');
