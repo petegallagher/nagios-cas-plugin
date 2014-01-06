@@ -54,6 +54,9 @@ $h_Option{'url'}{'options'} = '[-a-zA-Z0-9_./]+';
 $h_Option{'ltregex'}{'value'}   = 'input type="hidden" name="lt" value="([-a-zA-Z0-9_]+)';
 $h_Option{'ltregex'}{'options'} = '.+';
 
+$h_Option{'ekregex'}{'value'}   = 'name="execution" value="([-a-zA-Z0-9_]+)';
+$h_Option{'ekregex'}{'options'} = '.+';
+
 $h_Option{'login'}{'value'}   = '';
 $h_Option{'login'}{'options'} = '.+';
 
@@ -157,6 +160,7 @@ my $options = GetOptions(
   "p|port=i"            => \$h_Option{'port'}{'value'},
   "u|url=s"             => \$h_Option{'url'}{'value'},
   "x|ltregex=s"         => \$h_Option{'ltregex'}{'value'},
+  "e|ekregex=s"         => \$h_Option{'ekregex'}{'value'},
   "l|login=s"           => \$h_Option{'login'}{'value'},
   "a|authentication=s"  => \$h_Option{'authentication'}{'value'},
   "r|regex=s"           => \$h_Option{'regex'}{'value'},
@@ -190,6 +194,7 @@ if ($serviceAlive && $serviceAlive->connected()) {
   #          to estabish a connection
   #           - LT : Login ticket
   #           - cookie : session cookie
+  #	      - ExecutionKey
   &debug(1, 'main',
           'Connection to "'
         . $h_Option{'hostname'}{'value'}
@@ -219,299 +224,313 @@ if ($serviceAlive && $serviceAlive->connected()) {
     }
     &debug(9, 'main', 'Login page content : ' . "\n" . $content);
 
+    my $content2 = "$content";
+
     # Retreiving Login Ticket (if available)
     if ($content =~ /$h_Option{'ltregex'}{'value'}/) {
       my $loginTicket = "$1";
       &debug(1, 'main', 'CAS Login Ticket (lt) found : {' . $loginTicket . '}');
 
-      # Retreiving session cookie (if available)
-      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Za-z0-9_:.-]+); Path=\//) {
+      # Retreiving ExecutionKey (if available)
+      if ($content2 =~ /$h_Option{'ekregex'}{'value'}/) {
+	my $executionKey = "$1";
+	&debug(1, 'main', 'ExecutionKey found : {' . $executionKey . '}');
 
-        my $cookie = "$1";
-        &debug(1, 'main', 'CAS session Cookie found : {' . $cookie . '}');
+	      # Retreiving session cookie (if available)
+	      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Za-z0-9_:.-]+); Path=\//) {
 
-        # Step 2 : CAS server authentication with form args
-        #            - User name (login)
-        #            - User passord (authentication)
-        #            - Login ticket (lt)
-        #            - Session cookie (cookie)
-        &debug(3, 'main',
-                'Authenticate to "https://'
-              . $h_Option{'hostname'}{'value'} . ':'
-              . $h_Option{'port'}{'value'}
-              . $h_Option{'url'}{'value'}
-              . '" with username "'
-              . $h_Option{'login'}{'value'}
-              . '" and password "'
-              . $h_Option{'authentication'}{'value'}
-              . '"');
-        my $entity = "OTHER";
-        &debug(7, 'main', 'Parsing [' . $h_Option{'url'}{'value'} . '] to retrieve entity ...');
-        if ($h_Option{'url'}{'value'} =~ /\/(UT|UT1|UT2|UT3|INSA|ISAE|UNR|INP)(\/|$)/) {
-          $entity = "$1";
-        }
-        &debug(1, 'main',
-                'Login to "https://'
-              . $h_Option{'hostname'}{'value'} . ':'
-              . $h_Option{'port'}{'value'}
-              . $h_Option{'url'}{'value'}
-              . '"');
-        &debug(1, 'main', 'Sending headers "[COOKIE]=>JSESSIONID=' . $cookie . '"');
-        &debug(1, 'main',
-                'Sending form "entity=>' 
-              . $entity
-              . ', username=>'
-              . $h_Option{'login'}{'value'}
-              . ', password=>'
-              . $h_Option{'authentication'}{'value'}
-              . ', lt=>'
-              . $loginTicket
-              . ', _eventId=>submit"');
-        ($content, $response, %h_Header, $certificat) = post_https(
-          $h_Option{'hostname'}{'value'},
-          $h_Option{'port'}{'value'},
-          $h_Option{'url'}{'value'},
-          make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
-          make_form(
-            entity   => $entity,
-            username => $h_Option{'login'}{'value'},
-            password => $h_Option{'authentication'}{'value'},
-            lt       => $loginTicket,
-            _eventId => 'submit'
-          )
-        );
+		my $cookie = "$1";
+		&debug(1, 'main', 'CAS session Cookie found : {' . $cookie . '}');
 
-        &debug(1, 'main', 'Login response : {' . $response . '}');
-        if ($response =~ /^HTTP\/1\.[01] 200 OK$/) {
-          &debug(3, 'main', 'Login headers : ');
+		# Step 2 : CAS server authentication with form args
+		#            - User name (login)
+		#            - User passord (authentication)
+		#            - Login ticket (lt)
+		#            - Session cookie (cookie)
+		#	     - ExecutionKey
+		&debug(3, 'main',
+		        'Authenticate to "https://'
+		      . $h_Option{'hostname'}{'value'} . ':'
+		      . $h_Option{'port'}{'value'}
+		      . $h_Option{'url'}{'value'}
+		      . '" with username "'
+		      . $h_Option{'login'}{'value'}
+		      . '" and password "'
+		      . $h_Option{'authentication'}{'value'}
+		      . '"');
+		my $entity = "OTHER";
+		&debug(7, 'main', 'Parsing [' . $h_Option{'url'}{'value'} . '] to retrieve entity ...');
+		if ($h_Option{'url'}{'value'} =~ /\/(UT|UT1|UT2|UT3|INSA|ISAE|UNR|INP)(\/|$)/) {
+		  $entity = "$1";
+		}
+		&debug(1, 'main',
+		        'Login to "https://'
+		      . $h_Option{'hostname'}{'value'} . ':'
+		      . $h_Option{'port'}{'value'}
+		      . $h_Option{'url'}{'value'}
+		      . '"');
+		&debug(1, 'main', 'Sending headers "[COOKIE]=>JSESSIONID=' . $cookie . '"');
+		&debug(1, 'main',
+		        'Sending form "entity=>' 
+		      . $entity
+		      . ', username=>'
+		      . $h_Option{'login'}{'value'}
+		      . ', password=>'
+		      . $h_Option{'authentication'}{'value'}
+		      . ', lt=>'
+		      . $loginTicket
+		      . ', _eventId=>submit"');
+		($content, $response, %h_Header, $certificat) = post_https(
+		  $h_Option{'hostname'}{'value'},
+		  $h_Option{'port'}{'value'},
+		  $h_Option{'url'}{'value'},
+		  make_headers('COOKIE' => 'JSESSIONID=' . $cookie, 'User-Agent' => 'nagios/check_cas'),
+		  make_form(
+		    entity    => $entity,
+		    username  => $h_Option{'login'}{'value'},
+		    password  => $h_Option{'authentication'}{'value'},
+		    lt        => $loginTicket,
+		    execution => $executionKey,
+		    _eventId  => 'submit'
+		  )
+		);
 
-          # Printing headers (debug mode)
-          foreach my $headerName (keys(%h_Header)) {
-            &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-          }
-          &debug(9, 'main', 'Authentication result page content : ' . "\n" . $content);
+		&debug(1, 'main', 'Login response : {' . $response . '}');
+		if ($response =~ /^HTTP\/1\.[01] 200 OK$/) {
+		  &debug(3, 'main', 'Login headers : ');
 
-          # Verifying authentication succesful by searching a string
-          # in the result page
-          if ($content =~ /$h_Option{'regex'}{'value'}/) {
-            $result  = 'OK';
-            $message = "CAS authentication successful";
+		  # Printing headers (debug mode)
+		  foreach my $headerName (keys(%h_Header)) {
+		    &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		  }
+		  &debug(9, 'main', 'Authentication result page content : ' . "\n" . $content);
 
-          # Getting performance DATA if available
-          # Check services/viewStatistics.html (--npd-url) to retrieve performance data for nagios
-            &debug(3, 'main', 'Retrieving performande DATA');
+		  # Verifying authentication succesful by searching a string
+		  # in the result page
+		  if ($content =~ /$h_Option{'regex'}{'value'}/) {
+		    $result  = 'OK';
+		    $message = "CAS authentication successful";
 
-            # Getting CAS Granting Cookie
-            if ($h_Header{'SET-COOKIE'} =~ /^CASTGC=([^;]+); Domain=[^;]+; Path=\/[^;]+; Secure$/)
-            {
-              my $casGrantingCookie = "$1";
-              &debug(1, 'main', 'CAS Granting Cookie found : {' . $casGrantingCookie . '}');
+		  # Getting performance DATA if available
+		  # Check services/viewStatistics.html (--npd-url) to retrieve performance data for nagios
+		    &debug(3, 'main', 'Retrieving performande DATA');
 
-              # Accessing statistics page
-              &debug(1, 'main',
-                      'Login to "https://'
-                    . $h_Option{'hostname'}{'value'} . ':'
-                    . $h_Option{'port'}{'value'}
-                    . $h_Option{'npd-url'}{'value'}
-                    . '"');
-              &debug(1, 'main',
-                      'Sending headers "[COOKIE]=>JSESSIONID=' 
-                    . $cookie
-                    . '; CASTGC='
-                    . $casGrantingCookie
-                    . '"');
-              ($content, $response, %h_Header, $certificat) = post_https(
-                $h_Option{'hostname'}{'value'},
-                $h_Option{'port'}{'value'},
-                $h_Option{'npd-url'}{'value'},
-                make_headers(
-                  'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
-                )
-              );
+		    # Getting CAS Granting Cookie
+		    if ($h_Header{'SET-COOKIE'} =~ /^CASTGC=([^;]+); Domain=[^;]+; Path=\/[^;]+; Secure$/)
+		    {
+		      my $casGrantingCookie = "$1";
+		      &debug(1, 'main', 'CAS Granting Cookie found : {' . $casGrantingCookie . '}');
 
-              # We are redirected to acegi security check
-              &debug(1, 'main', 'Login response : {' . $response . '}');
-              if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
-                &debug(3, 'main', 'Login headers : ');
+		      # Accessing statistics page
+		      &debug(1, 'main',
+		              'Login to "https://'
+		            . $h_Option{'hostname'}{'value'} . ':'
+		            . $h_Option{'port'}{'value'}
+		            . $h_Option{'npd-url'}{'value'}
+		            . '"');
+		      &debug(1, 'main',
+		              'Sending headers "[COOKIE]=>JSESSIONID=' 
+		            . $cookie
+		            . '; CASTGC='
+		            . $casGrantingCookie
+		            . '"');
+		      ($content, $response, %h_Header, $certificat) = post_https(
+		        $h_Option{'hostname'}{'value'},
+		        $h_Option{'port'}{'value'},
+		        $h_Option{'npd-url'}{'value'},
+		        make_headers(
+		          'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
+		        )
+		      );
 
-                # Printing headers (debug mode)
-                foreach my $headerName (keys(%h_Header)) {
-                  &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-                }
-                &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
+		      # We are redirected to acegi security check
+		      &debug(1, 'main', 'Login response : {' . $response . '}');
+		      if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
+		        &debug(3, 'main', 'Login headers : ');
 
-                # Getting acegi security check location
-                if ($h_Header{'LOCATION'} =~ /^https:\/\/[^\/]+(\/.*)$/) {
-                  my $acegiURL = "$1";
-                  &debug(1, 'main',
-                          'Login to "https://'
-                        . $h_Option{'hostname'}{'value'} . ':'
-                        . $h_Option{'port'}{'value'}
-                        . $acegiURL
-                        . '"');
-                  &debug(1, 'main',
-                          'Sending headers "[COOKIE]=>JSESSIONID=' 
-                        . $cookie
-                        . '; CASTGC='
-                        . $casGrantingCookie
-                        . '"');
-                  ($content, $response, %h_Header, $certificat) = post_https(
-                    $h_Option{'hostname'}{'value'},
-                    $h_Option{'port'}{'value'},
-                    $acegiURL,
-                    make_headers(
-                      'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
-                    )
-                  );
+		        # Printing headers (debug mode)
+		        foreach my $headerName (keys(%h_Header)) {
+		          &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		        }
+		        &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
 
-                  # Are we redirected to acegi security check CAS Ticket validation ? (first time)
-                  &debug(1, 'main', 'Login response : {' . $response . '}');
-                  if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
-                    &debug(3, 'main', 'Login headers : ');
+		        # Getting acegi security check location
+		        if ($h_Header{'LOCATION'} =~ /^https:\/\/[^\/]+(\/.*)$/) {
+		          my $acegiURL = "$1";
+		          &debug(1, 'main',
+		                  'Login to "https://'
+		                . $h_Option{'hostname'}{'value'} . ':'
+		                . $h_Option{'port'}{'value'}
+		                . $acegiURL
+		                . '"');
+		          &debug(1, 'main',
+		                  'Sending headers "[COOKIE]=>JSESSIONID=' 
+		                . $cookie
+		                . '; CASTGC='
+		                . $casGrantingCookie
+		                . '"');
+		          ($content, $response, %h_Header, $certificat) = post_https(
+		            $h_Option{'hostname'}{'value'},
+		            $h_Option{'port'}{'value'},
+		            $acegiURL,
+		            make_headers(
+		              'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
+		            )
+		          );
 
-                    # Printing headers (debug mode)
-                    foreach my $headerName (keys(%h_Header)) {
-                      &debug(3, 'main',
-                        '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-                    }
-                    &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
+		          # Are we redirected to acegi security check CAS Ticket validation ? (first time)
+		          &debug(1, 'main', 'Login response : {' . $response . '}');
+		          if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
+		            &debug(3, 'main', 'Login headers : ');
 
-                    # Getting acegi security check CAS Ticket validation location
-                    if ($h_Header{'LOCATION'} =~ /^https:\/\/[^\/]+(\/.*)$/) {
-                      my $acegiTicketValidateURL = "$1";
-                      &debug(1, 'main',
-                              'Login to "https://'
-                            . $h_Option{'hostname'}{'value'} . ':'
-                            . $h_Option{'port'}{'value'}
-                            . $acegiTicketValidateURL
-                            . '"');
-                      &debug(1, 'main',
-                              'Sending headers "[COOKIE]=>JSESSIONID=' 
-                            . $cookie
-                            . '; CASTGC='
-                            . $casGrantingCookie
-                            . '"');
-                      ($content, $response, %h_Header, $certificat) = post_https(
-                        $h_Option{'hostname'}{'value'},
-                        $h_Option{'port'}{'value'},
-                        $acegiTicketValidateURL,
-                        make_headers(
-                          'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
-                        )
-                      );
+		            # Printing headers (debug mode)
+		            foreach my $headerName (keys(%h_Header)) {
+		              &debug(3, 'main',
+		                '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		            }
+		            &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
 
-                      # Are we redirected to acegi security check CAS Ticket validation ?
-                      &debug(1, 'main', 'Login response : {' . $response . '}');
-                      &debug(3, 'main', 'Login headers : ');
+		            # Getting acegi security check CAS Ticket validation location
+		            if ($h_Header{'LOCATION'} =~ /^https:\/\/[^\/]+(\/.*)$/) {
+		              my $acegiTicketValidateURL = "$1";
+		              &debug(1, 'main',
+		                      'Login to "https://'
+		                    . $h_Option{'hostname'}{'value'} . ':'
+		                    . $h_Option{'port'}{'value'}
+		                    . $acegiTicketValidateURL
+		                    . '"');
+		              &debug(1, 'main',
+		                      'Sending headers "[COOKIE]=>JSESSIONID=' 
+		                    . $cookie
+		                    . '; CASTGC='
+		                    . $casGrantingCookie
+		                    . '"');
+		              ($content, $response, %h_Header, $certificat) = post_https(
+		                $h_Option{'hostname'}{'value'},
+		                $h_Option{'port'}{'value'},
+		                $acegiTicketValidateURL,
+		                make_headers(
+		                  'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
+		                )
+		              );
 
-                      # Printing headers (debug mode)
-                      foreach my $headerName (keys(%h_Header)) {
-                        &debug(3, 'main',
-                          '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-                      }
-                      &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
-                      if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
-                        &debug(1, 'main',
-                                'Login to "https://'
-                              . $h_Option{'hostname'}{'value'} . ':'
-                              . $h_Option{'port'}{'value'}
-                              . $h_Option{'npd-url'}{'value'}
-                              . '"');
-                        &debug(1, 'main',
-                                'Sending headers "[COOKIE]=>JSESSIONID=' 
-                              . $cookie
-                              . '; CASTGC='
-                              . $casGrantingCookie
-                              . '"');
-                        ($content, $response, %h_Header, $certificat) = post_https(
-                          $h_Option{'hostname'}{'value'},
-                          $h_Option{'port'}{'value'},
-                          $h_Option{'npd-url'}{'value'},
-                          make_headers(
-                            'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
-                          )
-                        );
-                        &debug(1, 'main', 'Login response : {' . $response . '}');
-                        if ($response =~ /^HTTP\/1\.1 200 OK$/) {
-                          &debug(3, 'main', 'Login headers : ');
+		              # Are we redirected to acegi security check CAS Ticket validation ?
+		              &debug(1, 'main', 'Login response : {' . $response . '}');
+		              &debug(3, 'main', 'Login headers : ');
 
-                          # Printing headers (debug mode)
-                          foreach my $headerName (keys(%h_Header)) {
-                            &debug(3, 'main',
-                              '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-                          }
-                          &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
-                          if ($content =~ /$h_Option{'npd-regex'}{'value'}/) {
-                            my $nagiosperformancedata = $1;
-                            $result  = 'OK';
-                            $message = "$message|$nagiosperformancedata";
-                          }
-                          else {
-                            &debug(1, 'main', 'Unable get statistic page');
-                            &debug(1, 'main', 'No stats available');
-                          }
-                        }
-                        else {
-                          &debug(1, 'main', 'Unable get statistic page');
-                          &debug(1, 'main', 'No stats available');
-                        }
-                      }
-                      else {
-                        &debug(1, 'main',
-                          'Not redirected to acegi security check CAS Ticket validation');
-                        &debug(1, 'main', 'No stats available');
-                      }
-                    }
-                    else {
-                      &debug(1, 'main', 'Unable to redirect to CAS service manage');
-                      &debug(1, 'main', 'No stats available');
-                    }
-                  }
-                  else {
-                    &debug(1, 'main',
-                      'Not redirected to acegi security check CAS Ticket validation (first time)'
-                    );
-                    &debug(1, 'main', 'No stats available');
-                  }
-                }
-                else {
-                  &debug(1, 'main', 'Unable to find location for acegi security check page');
-                  &debug(1, 'main', 'No stats available');
-                }
-              }
-              else {
-                &debug(1, 'main', 'Not redirected to acegi security check');
-                &debug(1, 'main', 'No stats available');
-              }
-            }
-            else {
-              &debug(1, 'main', 'Unable to retrieve CAS Granting Cookie');
-              &debug(1, 'main', 'No stats available');
-            }
-          }
-          else {
-            &debug(2, 'main',
-                    'No match for "'
-                  . $h_Option{'regex'}{'value'}
-                  . '" in authentication result request.');
-            $result  = 'CRITICAL';
-            $message = "CAS login failed ";
-          }
-        }
-        else {
-          $result  = 'CRITICAL';
-          $message = 'Cannot access to CAS authentication result ' . 'page (' . $response . ')';
-          &debug(3, 'main', 'Authentication result page headers : ');
-          foreach my $headerName (keys(%h_Header)) {
-            &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
-          }
-          &debug(8, 'main', 'Authentication result page content : ' . "\n" . $content);
-        }
-      }
-      else {
-        $result  = 'CRITICAL';
-        $message = 'CAS session cookie not found';
-      }
+		              # Printing headers (debug mode)
+		              foreach my $headerName (keys(%h_Header)) {
+		                &debug(3, 'main',
+		                  '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		              }
+		              &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
+		              if ($response =~ /^HTTP\/1.1 302 Moved Temporarily$/) {
+		                &debug(1, 'main',
+		                        'Login to "https://'
+		                      . $h_Option{'hostname'}{'value'} . ':'
+		                      . $h_Option{'port'}{'value'}
+		                      . $h_Option{'npd-url'}{'value'}
+		                      . '"');
+		                &debug(1, 'main',
+		                        'Sending headers "[COOKIE]=>JSESSIONID=' 
+		                      . $cookie
+		                      . '; CASTGC='
+		                      . $casGrantingCookie
+		                      . '"');
+		                ($content, $response, %h_Header, $certificat) = post_https(
+		                  $h_Option{'hostname'}{'value'},
+		                  $h_Option{'port'}{'value'},
+		                  $h_Option{'npd-url'}{'value'},
+		                  make_headers(
+		                    'COOKIE' => 'JSESSIONID=' . $cookie . '; CASTGC=' . $casGrantingCookie
+		                  )
+		                );
+		                &debug(1, 'main', 'Login response : {' . $response . '}');
+		                if ($response =~ /^HTTP\/1\.1 200 OK$/) {
+		                  &debug(3, 'main', 'Login headers : ');
+
+		                  # Printing headers (debug mode)
+		                  foreach my $headerName (keys(%h_Header)) {
+		                    &debug(3, 'main',
+		                      '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		                  }
+		                  &debug(9, 'main', 'Service result page content : ' . "\n" . $content);
+		                  if ($content =~ /$h_Option{'npd-regex'}{'value'}/) {
+		                    my $nagiosperformancedata = $1;
+		                    $result  = 'OK';
+		                    $message = "$message|$nagiosperformancedata";
+		                  }
+		                  else {
+		                    &debug(1, 'main', 'Unable get statistic page');
+		                    &debug(1, 'main', 'No stats available');
+		                  }
+		                }
+		                else {
+		                  &debug(1, 'main', 'Unable get statistic page');
+		                  &debug(1, 'main', 'No stats available');
+		                }
+		              }
+		              else {
+		                &debug(1, 'main',
+		                  'Not redirected to acegi security check CAS Ticket validation');
+		                &debug(1, 'main', 'No stats available');
+		              }
+		            }
+		            else {
+		              &debug(1, 'main', 'Unable to redirect to CAS service manage');
+		              &debug(1, 'main', 'No stats available');
+		            }
+		          }
+		          else {
+		            &debug(1, 'main',
+		              'Not redirected to acegi security check CAS Ticket validation (first time)'
+		            );
+		            &debug(1, 'main', 'No stats available');
+		          }
+		        }
+		        else {
+		          &debug(1, 'main', 'Unable to find location for acegi security check page');
+		          &debug(1, 'main', 'No stats available');
+		        }
+		      }
+		      else {
+		        &debug(1, 'main', 'Not redirected to acegi security check');
+		        &debug(1, 'main', 'No stats available');
+		      }
+		    }
+		    else {
+		      &debug(1, 'main', 'Unable to retrieve CAS Granting Cookie');
+		      &debug(1, 'main', 'No stats available');
+		    }
+		  }
+		  else {
+		    &debug(2, 'main',
+		            'No match for "'
+		          . $h_Option{'regex'}{'value'}
+		          . '" in authentication result request.');
+		    $result  = 'CRITICAL';
+		    $message = "CAS login failed ";
+		  }
+		}
+		else {
+		  $result  = 'CRITICAL';
+		  $message = 'Cannot access to CAS authentication result ' . 'page (' . $response . ')';
+		  &debug(3, 'main', 'Authentication result page headers : ');
+		  foreach my $headerName (keys(%h_Header)) {
+		    &debug(3, 'main', '[' . $headerName . '] = {' . $h_Header{$headerName} . '}');
+		  }
+		  &debug(8, 'main', 'Authentication result page content : ' . "\n" . $content);
+		}
+	      }
+	      else {
+		$result  = 'CRITICAL';
+		$message = 'CAS session cookie not found';
+	      }
+	}
+	else {
+	$result  = 'CRITICAL';
+	$message = 'Execution Key not found';
+	}
     }
     else {
       &debug(2, 'main',
@@ -627,6 +646,11 @@ The CAS server login URL (default to "/cas/login").
 
 Regex to find the CAS login token 
 (default to "input type="hidden" name="lt" value="([-a-zA-Z0-9_]+)").
+
+=item B<--ekregex <regex>
+
+Regex to find the Execution Key
+(default to "input name="execution" value="([-a-zA-Z0-9_]+)").
 
 =item B<--login <username>
 
