@@ -51,7 +51,7 @@ $h_Option{'port'}{'options'} = '[0-9]+';
 $h_Option{'url'}{'value'}   = '/cas/login';
 $h_Option{'url'}{'options'} = '[-a-zA-Z0-9_./]+';
 
-$h_Option{'ltregex'}{'value'}   = 'input type="hidden" name="lt" value="([-a-zA-Z0-9_]+)';
+$h_Option{'ltregex'}{'value'}   = 'input type="hidden" name="lt" value="([-\.a-zA-Z0-9_]+)';
 $h_Option{'ltregex'}{'options'} = '.+';
 
 $h_Option{'login'}{'value'}   = '';
@@ -224,8 +224,13 @@ if ($serviceAlive && $serviceAlive->connected()) {
       my $loginTicket = "$1";
       &debug(1, 'main', 'CAS Login Ticket (lt) found : {' . $loginTicket . '}');
 
+      my $execution = "";
+      if ($content =~ /name="execution" value="([^"]+)"/s) {
+	  $execution = $1;
+      }
+
       # Retreiving session cookie (if available)
-      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Za-z0-9_:.-]+); Path=\//) {
+      if ($h_Header{'SET-COOKIE'} =~ /^JSESSIONID=([A-Za-z0-9_:.-]+);\s*Path=\//) {
 
         my $cookie = "$1";
         &debug(1, 'main', 'CAS session Cookie found : {' . $cookie . '}');
@@ -266,6 +271,10 @@ if ($serviceAlive && $serviceAlive->connected()) {
               . $h_Option{'authentication'}{'value'}
               . ', lt=>'
               . $loginTicket
+              . ', execution=>'
+              . $execution
+              . ', submit=>'
+              . 'LOGIN'
               . ', _eventId=>submit"');
         ($content, $response, %h_Header, $certificat) = post_https(
           $h_Option{'hostname'}{'value'},
@@ -277,7 +286,9 @@ if ($serviceAlive && $serviceAlive->connected()) {
             username => $h_Option{'login'}{'value'},
             password => $h_Option{'authentication'}{'value'},
             lt       => $loginTicket,
-            _eventId => 'submit'
+            execution => $execution,
+            _eventId => 'submit',
+            submit => 'LOGIN'
           )
         );
 
